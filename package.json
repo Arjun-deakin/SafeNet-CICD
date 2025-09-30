@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node app.js",
-    "test": "jest --coverage",
+    "test": "jest",
     "lint": "npx eslint . || true"
   },
   "dependencies": {

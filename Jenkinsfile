@@ -3,11 +3,11 @@ pipeline {
   options { timestamps() }
 
   environment {
-    RELEASE_VERSION     = "1.0.${env.BUILD_NUMBER}"
+    RELEASE_VERSION     = "1.0.${env.BUILD_NUMBER}"          // used by SonarCloud "Previous version" window
     IMAGE_NAME          = "your-dockerhub-username/safenet-api"
     IMAGE_TAG           = "${env.BUILD_NUMBER}"
 
-    // Tool names must match your "Global Tool Configuration"
+    // Tool names must match Manage Jenkins → Global Tool Configuration
     NODEJS_HOME         = tool 'node20'
     SONAR_SCANNER_HOME  = tool 'sonar-scanner'
   }
@@ -36,8 +36,8 @@ pipeline {
     stage('Test') {
       steps {
         withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
-          // npm test will resolve local jest from node_modules/.bin
-          bat 'npm test -- --coverage'
+          // uses jest.config.js
+          bat 'npm test'
         }
         archiveArtifacts artifacts: 'coverage/**', fingerprint: true
       }
@@ -46,7 +46,7 @@ pipeline {
     stage('Code Quality (SonarCloud)') {
       steps {
         withSonarQubeEnv('SONARCLOUD') {
-          // On Windows, call the .bat wrapper
+          // On Windows, use the .bat wrapper
           bat "\"%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat\" -Dsonar.projectVersion=${RELEASE_VERSION}"
         }
       }
@@ -55,20 +55,16 @@ pipeline {
     stage('Quality Gate (SonarCloud – no webhook)') {
       steps {
         script {
-          // Read task file produced by the scanner
+          // Read task info written by the scanner
           def props = readProperties file: '.scannerwork/report-task.txt'
           def ceTaskId = props['ceTaskId']
           def serverUrl = props['serverUrl'] ?: 'https://sonarcloud.io'
 
           withCredentials([string(credentialsId: 'SONARCLOUD_TOKEN', variable: 'SC_TOKEN')]) {
+            // 1) Wait for CE task to finish
             timeout(time: 5, unit: 'MINUTES') {
               waitUntil {
-                // Windows has curl available on recent versions; otherwise install it or use PowerShell Invoke-WebRequest
-                def ceJson = bat(
-                  script: "curl -s -u %SC_TOKEN%: ${serverUrl}/api/ce/task?id=${ceTaskId}",
-                  returnStdout: true
-                ).trim()
-
+                def ceJson = bat(script: "curl -s -u %SC_TOKEN%: ${serverUrl}/api/ce/task?id=${ceTaskId}", returnStdout: true).trim()
                 def mStatus = (ceJson =~ /\"status\":\"([A-Z_]+)\"/)
                 if (!mStatus.find()) { sleep 3; return false }
                 def status = mStatus.group(1)
@@ -86,11 +82,8 @@ pipeline {
               }
             }
 
-            def qgJson = bat(
-              script: "curl -s -u %SC_TOKEN%: ${serverUrl}/api/qualitygates/project_status?analysisId=${env.SONAR_ANALYSIS_ID}",
-              returnStdout: true
-            ).trim()
-
+            // 2) Fetch Quality Gate result
+            def qgJson = bat(script: "curl -s -u %SC_TOKEN%: ${serverUrl}/api/qualitygates/project_status?analysisId=${env.SONAR_ANALYSIS_ID}", returnStdout: true).trim()
             def mQG = (qgJson =~ /\"status\":\"([A-Z]+)\"/)
             if (!mQG.find()) { error "Unable to read Quality Gate status" }
             def qg = mQG.group(1)
@@ -105,8 +98,8 @@ pipeline {
       steps {
         withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
           withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
+            // npx downloads Snyk if not present; remove "|| ver > nul" to fail on issues
             bat """
-              npm ci
               npx snyk auth %SNYK_TOKEN% || ver > nul
               npx snyk test || ver > nul
               npx snyk monitor || ver > nul
@@ -118,7 +111,6 @@ pipeline {
 
     stage('Deploy: Staging') {
       steps {
-        // Docker Desktop must be installed and available in PATH
         bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           bat """
@@ -126,7 +118,6 @@ pipeline {
             docker push ${IMAGE_NAME}:${IMAGE_TAG}
           """
         }
-        // docker compose v2 (CLI) syntax:
         bat """
           set IMAGE_TAG=${IMAGE_TAG}
           docker compose -f docker-compose.staging.yml up -d --remove-orphans
@@ -146,13 +137,11 @@ pipeline {
             docker push ${IMAGE_NAME}:latest
           """
         }
-        // Git tagging on Windows
         bat 'git config user.email "ci@example.com" || ver > nul'
         bat 'git config user.name "ci" || ver > nul'
         bat "git tag -a v${RELEASE_VERSION} -m \"Release ${RELEASE_VERSION}\" || ver > nul"
         bat "git push --tags || ver > nul"
 
-        // Deploy prod
         bat "docker compose -f docker-compose.prod.yml up -d --remove-orphans"
       }
     }
