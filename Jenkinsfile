@@ -136,7 +136,7 @@ pipeline {
                     set IMAGE_TAG=${IMAGE_TAG}
                     docker compose -f docker-compose.staging.yml up -d --remove-orphans
                     for /l %%x in (1,1,10) do (
-                        curl -fsS http://localhost:3000/health && goto :success
+                        curl -f http://localhost:3000/health >nul 2>&1 && goto :success
                         timeout /t 3 >nul
                     )
                     echo Service not ready after retries
@@ -163,9 +163,9 @@ pipeline {
                 // Push Git tag using GitHub credentials
                 withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                     bat """
-                        git config user.email "ci@example.com"
-                        git config user.name "ci"
-                        git remote set-url origin https://%GIT_USER%:%GIT_TOKEN%@github.com/arjundeakin/safenet.git
+                        git config user.email "arjundeakinuni@gmail.com"
+                        git config user.name "Arjun-deakin"
+                        git remote set-url origin https://%GIT_USER%:%GIT_TOKEN%@github.com/Arjun-deakin/SafeNet-CICD
                         git tag -a v${RELEASE_VERSION} -m "Release ${RELEASE_VERSION}"
                         git push origin v${RELEASE_VERSION}
                     """
