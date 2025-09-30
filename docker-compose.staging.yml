@@ -1,7 +1,7 @@
 services:
   safenet:
     build: .
-    image: your-dockerhub-username/safenet-api:${IMAGE_TAG:-staging}
+    image: arjundeakin/safenet-api:${IMAGE_TAG:-staging}
     ports:
       - "3000:3000"
     environment:
