@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 10s
+scrape_configs:
+  - job_name: 'safenet'
+    static_configs:
+      - targets: ['safenet:3000']
+  # Add alerting rules & Alertmanager later if required

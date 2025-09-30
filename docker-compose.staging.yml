@@ -1,0 +1,19 @@
+services:
+  safenet:
+    build: .
+    image: your-dockerhub-username/safenet-api:${IMAGE_TAG:-staging}
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=staging
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+  # optional if you want Grafana locally in staging
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
