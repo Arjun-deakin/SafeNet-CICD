@@ -22,21 +22,26 @@ pipeline {
     }
 
     stage('Build') {
-      steps {
-        withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
-          bat """
-            node -v
-            npm -v
-            npm ci
-          """
-        }
-      }
+        steps {
+            withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
+            // run each step separately and show output; fail if npm ci fails
+            bat 'node -v'
+            bat 'npm -v'
+            bat 'npm ci'
+      // prove deps exist
+            bat 'if not exist node_modules (echo node_modules missing && exit /b 1)'
+            bat 'dir /b node_modules | findstr /i "jest" || echo (jest folder not listed yet)'
+            bat 'dir /b node_modules | findstr /i "supertest" || echo (supertest folder not listed yet)'
     }
+  }
+}
+
 
     stage('Test') {
       steps {
         withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
           // uses jest.config.js
+          bat 'if not exist node_modules npm ci'
           bat 'npx jest --coverage'
         }
         archiveArtifacts artifacts: 'coverage/**', fingerprint: true
