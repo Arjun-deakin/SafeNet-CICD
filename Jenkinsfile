@@ -135,8 +135,13 @@ pipeline {
         bat """
           set IMAGE_TAG=${IMAGE_TAG}
           docker compose -f docker-compose.staging.yml up -d --remove-orphans
-          ping -n 3 127.0.0.1 > nul
-          curl -fsS http://localhost:3000/health || ver > nul
+          for /l %%x in (1,1,10) do (
+            curl -fsS http://localhost:3000/health && goto :success
+            timeout /t 3 >nul
+          )
+          echo Service not ready after retries
+          exit  /b 1
+          :success
         """
       }
     }
