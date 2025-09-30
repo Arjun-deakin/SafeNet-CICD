@@ -14,14 +14,14 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
-        sh 'git rev-parse --short HEAD || true'
+        bat 'git rev-parse --short HEAD || true'
       }
     }
 
     stage('Build') {
       tools { nodejs 'node20' }
       steps {
-        sh """
+        bat """
           node -v
           npm -v
           npm ci
@@ -31,7 +31,7 @@ pipeline {
 
     stage('Test') {
       steps {
-        sh 'npm test -- --coverage'
+        bat 'npm test -- --coverage'
         archiveArtifacts artifacts: 'coverage/**', fingerprint: true
       }
     }
@@ -39,7 +39,7 @@ pipeline {
     stage('Code Quality (SonarCloud)') {
       steps {
         withSonarQubeEnv('SONARCLOUD') {
-          sh """
+          bat """
             ${SONAR_SCANNER_HOME}/bin/sonar-scanner \
               -Dsonar.projectVersion=${RELEASE_VERSION}
           """
@@ -57,7 +57,7 @@ pipeline {
           withCredentials([string(credentialsId: 'SONARCLOUD_TOKEN', variable: 'SC_TOKEN')]) {
             timeout(time: 5, unit: 'MINUTES') {
               waitUntil {
-                def ceJson = sh(
+                def ceJson = bat(
                   script: "curl -s -u ${SC_TOKEN}: ${serverUrl}/api/ce/task?id=${ceTaskId}",
                   returnStdout: true
                 ).trim()
@@ -78,7 +78,7 @@ pipeline {
               }
             }
 
-            def qgJson = sh(
+            def qgJson = bat(
               script: "curl -s -u ${SC_TOKEN}: ${serverUrl}/api/qualitygates/project_status?analysisId=${env.SONAR_ANALYSIS_ID}",
               returnStdout: true
             ).trim()
@@ -96,7 +96,7 @@ pipeline {
       steps {
         withEnv(["PATH=${env.NODEJS_HOME}/bin:${env.PATH}"]) {
           withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-            sh """
+            bat """
               npm ci
               npx snyk auth ${SNYK_TOKEN} || true
               npx snyk test || true
@@ -109,14 +109,14 @@ pipeline {
 
     stage('Deploy: Staging') {
       steps {
-        sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+        bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh """
+          bat """
             echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
             docker push ${IMAGE_NAME}:${IMAGE_TAG}
           """
         }
-        sh """
+        bat """
           IMAGE_TAG=${IMAGE_TAG} docker compose -f docker-compose.staging.yml up -d --remove-orphans
           sleep 3
           curl -fsS http://localhost:3000/health || true
@@ -127,18 +127,18 @@ pipeline {
     stage('Release: Promote to Prod (Manual)') {
       steps {
         input message: "Promote build #${env.BUILD_NUMBER} (v${RELEASE_VERSION}) to PROD?", ok: 'Release'
-        sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
+        bat "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh """
+          bat """
             echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
             docker push ${IMAGE_NAME}:latest
           """
         }
-        sh 'git config user.email "ci@example.com" || true'
-        sh 'git config user.name "ci" || true'
-        sh 'git tag -a v${RELEASE_VERSION} -m "Release ${RELEASE_VERSION}" || true'
-        sh 'git push --tags || true'
-        sh 'IMAGE_TAG=latest docker compose -f docker-compose.prod.yml up -d --remove-orphans'
+        bat 'git config user.email "ci@example.com" || true'
+        bat 'git config user.name "ci" || true'
+        bat 'git tag -a v${RELEASE_VERSION} -m "Release ${RELEASE_VERSION}" || true'
+        bat 'git push --tags || true'
+        bat 'IMAGE_TAG=latest docker compose -f docker-compose.prod.yml up -d --remove-orphans'
       }
     }
 
