@@ -4,7 +4,7 @@ pipeline {
 
   environment {
     RELEASE_VERSION     = "1.0.${env.BUILD_NUMBER}"
-    IMAGE_NAME          = "your-dockerhub-username/safenet-api"
+    IMAGE_NAME          = "arjundeakin/safenet-api"
     IMAGE_TAG           = "${env.BUILD_NUMBER}"
     NODEJS_HOME         = tool 'node20'
     SONAR_SCANNER_HOME  = tool 'sonar-scanner'
