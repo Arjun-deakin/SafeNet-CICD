@@ -2,11 +2,14 @@ const express = require('express');
 const client = require('prom-client');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Prometheus metrics
 const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics();
+// Avoid timers in test mode (prevents Jest hang)
+if (process.env.NODE_ENV !== 'test') {
+  collectDefaultMetrics();
+}
+
 const requestCounter = new client.Counter({
   name: 'safenet_requests_total',
   help: 'Total HTTP requests'
@@ -25,6 +28,4 @@ app.get('/metrics', async (req, res) => {
 // placeholder API for future
 app.get('/api/ping', (req, res) => res.json({ pong: true }));
 
-app.listen(PORT, () => console.log(`SafeNet API listening on ${PORT} - app.js:28`));
-
-module.exports = app; // for tests
+module.exports = app;

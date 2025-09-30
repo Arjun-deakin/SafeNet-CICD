@@ -4,8 +4,8 @@
   "main": "app.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node app.js",
-    "test": "jest --coverage",
+    "start": "node server.js",
+    "test": "NODE_ENV=test jest --coverage",
     "lint": "npx eslint . || true"
   },
   "dependencies": {
