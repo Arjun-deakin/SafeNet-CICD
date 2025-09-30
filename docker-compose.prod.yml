@@ -1,6 +1,6 @@
 services:
   safenet:
-    image: your-dockerhub-username/safenet-api:${IMAGE_TAG:-latest}
+    image: arjundeakin/safenet-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       - NODE_ENV=production
