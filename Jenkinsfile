@@ -37,7 +37,7 @@ pipeline {
       steps {
         withEnv(["PATH=${env.NODEJS_HOME}\\bin;${env.PATH}"]) {
           // uses jest.config.js
-          bat 'npm test'
+          bat 'npx jest --coverage'
         }
         archiveArtifacts artifacts: 'coverage/**', fingerprint: true
       }
