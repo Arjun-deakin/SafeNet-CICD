@@ -9,7 +9,7 @@
     "lint": "npx eslint . || true"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.22.1",
     "prom-client": "^15.1.2"
   },
   "devDependencies": {
